@@ -1,0 +1,155 @@
+#Instalin Packages
+from keras.datasets import mnist
+import matplotlib.pyplot as plt
+import numpy as np
+from time import time
+from sklearn.svm import SVC
+from sklearn import metrics
+from sklearn.metrics import confusion_matrix
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.pipeline import Pipeline
+from sklearn.manifold import TSNE
+
+#Load dataset
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+print(x_train.shape, y_train.shape)
+print(x_test.shape, y_test.shape)
+
+#Mengubah gambar menjadi single vector
+x_train = np.reshape(x_train, (len(x_train), -1))/255
+x_test = np.reshape(x_test, (len(x_test), -1))/255
+print(x_train.shape, y_train.shape)
+print(x_test.shape, y_test.shape)
+
+#PCA Teknik
+#Melakukan set pada angka menjadi komponen
+steps = [('scaling', StandardScaler()), ('pca', PCA(n_components=0.85))]
+pipeline = Pipeline(steps)
+pipeline.fit(x_train)
+
+#Mengecek nomor komponen ang telah di set
+pipeline['pca'].n_components_
+
+reduced = pipeline.inverse_transform(pipeline.transform(x_train))
+
+#Visualisasi PCA
+fig, (ax1, ax2) = plt.subplots(1, 2)
+ax1.matshow(x_train[0].reshape(28,28), cmap='gray')
+ax2.matshow(reduced[0].reshape(28,28), cmap='gray')
+ax1.set_axis_off()
+ax2.set_axis_off()
+fig.suptitle("Original image VS PCA reduced".format(y_train[0]))
+plt.show()
+
+#Menggunakan SVM
+steps = [('scaling', StandardScaler()), ('clf', SVC())]
+
+pipeline = Pipeline(steps)
+
+# train
+t0 = time()
+pipeline.fit(x_train, y_train)
+
+# predict
+y_pred = pipeline.predict(x_test)
+
+# accuracy
+print("accuracy:", metrics.accuracy_score(y_true=y_test, y_pred=y_pred), "\n")
+
+# confusion matrix
+print(metrics.confusion_matrix(y_true=y_test, y_pred=y_pred))
+
+# time taken
+t_all_feats = time() - t0
+print("Training and classification done in {}s".format(t_all_feats))
+
+# define pipeline steps
+steps = [('scaling', StandardScaler()), ('reduce_dim', PCA(n_components=50)), ('clf', SVC())]
+pipeline = Pipeline(steps)
+
+# train
+t0 = time()
+pipeline.fit(x_train, y_train)
+
+# predict
+y_pred = pipeline.predict(x_test)
+
+# accuracy
+print("accuracy:", metrics.accuracy_score(y_true=y_test, y_pred=y_pred), "\n")
+
+# confusion matrix
+print(metrics.confusion_matrix(y_true=y_test, y_pred=y_pred))
+
+t_reduced_feats = time() - t0
+print("Training and classification done in {}s".format(t_reduced_feats))
+print("Speedup {}x".format(t_all_feats/t_reduced_feats))
+
+%%time
+
+# define pipeline steps
+pca_pipeline = Pipeline([
+    ('scaler', StandardScaler()),
+    ('dim_reduction', PCA(n_components=2))
+])
+
+pca_results =  pca_pipeline.fit_transform(x_train)
+
+# create the scatter plot
+fig, ax = plt.subplots(figsize=(16,11))
+scatter = ax.scatter(
+    x=pca_results[:,0],
+    y=pca_results[:,1],
+    c=y_train,
+    cmap=plt.cm.get_cmap('Spectral'),
+    alpha=0.4)
+
+# produce a legend with the colors from the scatter
+legend = ax.legend(*scatter.legend_elements(), title="Classes",bbox_to_anchor=(1.05, 1), loc='upper left',)
+ax.add_artist(legend)
+ax.set_title("PCA visualization")
+plt.xlabel("1st principal component")
+plt.ylabel("2nd principal component")
+plt.show()
+
+%%time
+
+# define pipeline steps
+tsne_pipeline = Pipeline([
+    ('scaler', StandardScaler()),
+    # reduce to 50 PCA components, before t-SNE
+    # otherwise, it is gonna take forever to finish…
+    ('dim_reduction', PCA(n_components=50)),
+    ('2d_reduction',  TSNE(n_components=2, init='pca', random_state=42))
+])
+
+tsne_results =  tsne_pipeline.fit_transform(x_train)
+
+# Create the scatter plot
+fig, ax = plt.subplots(figsize=(16,11))
+scatter = ax.scatter(
+    x=tsne_results[:,0],
+    y=tsne_results[:,1],
+    c=y_train,
+    cmap=plt.cm.get_cmap('Spectral'),
+    alpha=0.4)
+
+# produce a legend with the colors from the scatter
+legend = ax.legend(*scatter.legend_elements(), title="Classes",bbox_to_anchor=(1.05, 1), loc='upper left',)
+ax.add_artist(legend)
+ax.set_title("t-SNE visualization")
+plt.xlabel("1st t-SNE component")
+plt.ylabel("2nd t-SNE component")
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
